@@ -27,10 +27,11 @@ function modify(package_json_path) {
         }
     }
     var stream = through2.obj(function (file, encoding, callback) {
+        files[file.relative] = file;
+        this.push(file)
         if(file.relative.substr(-3)!=".ts"){
             return callback();
         }
-        files[file.relative] = file;
         //如果文件为空，不做任何操作，转入下一个操作，即下一个pipe
         if (file.isNull()) {
             // this.push(file);
@@ -69,24 +70,23 @@ function modify(package_json_path) {
                     if (l == "_cwd_") {
                         continue
                     }
-                    list.push('export * from "./' + l + '";');
+                    if(tree[l]!=null){
+                        list.push('export * as '+l+' from "./' + l + '";');
+                    }else{
+                        list.push('export * from "./' + l + '";');
+                    }
                 }
-                let content = list.join(os.EOL);
-                let file = new File({
-                    path: index_path,
-                    cwd: cwd,
-                    contents: Buffer.from(content)
-                });
+                let content = list.join("\n");
+                let file = new File()
+                file.contents=Buffer.from(content)
+                file.path=path.resolve(cwd, index_path)
                 files[index_path]=file
                 this.push(file);
             }
         }
-
-
         let main_index = files["index.ts"];
         let index_content = main_index.contents.toString();
         // let index_content = ""
-        let reg = new RegExp('export . from "\./(.*)"', "g");
         let matched = [];
         index_content.replace(/export . from "\.\/(.*)"/g, function (match, group, group2) {
             matched.push(group);
